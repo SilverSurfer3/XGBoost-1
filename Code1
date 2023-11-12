@@ -1,0 +1,73 @@
+import numpy as np
+import pandas as pd
+import xgboost as xgb
+from sklearn.model_selection import GridSearchCV
+
+# Data
+data = np.array([
+21, 36, 27, 20, 3, 16, 24, 31, 20, 19, 28, 10, 15, 3, 37
+
+
+])
+# Convert data to pandas DataFrame
+df = pd.DataFrame(data, columns=['Price'])
+
+# Feature engineering
+lags = range(1, 5)  # Lags from 1 to 8 days 
+for lag in lags:
+    df[f'Lag{lag}'] = df['Price'].shift(lag)
+    
+    #LAG IN SIMPLE TERMS
+    #Alright, imagine you have a friend who tells you a story every day. 
+    #The "lag" is like how many days ago that story was told.
+    
+    #The number 19 in the code represents looking at what happened in the stock market 19 days ago. 
+    #You can adjust this number based on how far back in time you want the model to consider for making predictions.
+
+# Drop rows with missing values
+df = df.dropna()
+
+# Split into training and test sets
+train_size = int(len(df) * 0.8)
+train_data = df[:train_size]
+test_data = df[train_size:]
+
+# Prepare XGBoost data structures
+X_train = train_data.iloc[:, 1:]  # Exclude 'Price' column
+y_train = train_data['Price']
+X_test = test_data.iloc[:, 1:]
+
+# Hyperparameter tuning with GridSearchCV
+param_grid = {
+    'n_estimators': [50, 100, 150],
+    'learning_rate': [0.1, 0.01, 0.003 ],
+    
+    
+ # Adjust these values 
+    #LEARNING RATE Recommended sequence: 
+    #0.1, 0.01, 0.001 
+   # AND
+    #0.01, 0.1, 0.2
+    
+    
+    'max_depth': [3, 4, 5],
+    'subsample': [0.8, 0.9, 1.0],
+}
+
+model = xgb.XGBRegressor()
+grid_search = GridSearchCV(model, param_grid, scoring='neg_mean_squared_error', cv=3)
+grid_search.fit(X_train, y_train)
+
+# Get the best model from the grid search
+best_model = grid_search.best_estimator_
+
+# Make predictions
+predictions = best_model.predict(X_test)
+
+# Forecast tomorrow's stock price
+last_eight_days = df.iloc[-8:, 1:]
+
+tomorrow_price = best_model.predict(last_eight_days)
+
+print("Best parameters from GridSearchCV:", grid_search.best_params_)
+print("Tomorrow's forecasted stock price:", tomorrow_price[0])
